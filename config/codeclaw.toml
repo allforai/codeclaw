@@ -1,0 +1,242 @@
+# =============================================================================
+# CodeClaw Configuration Preset
+# =============================================================================
+#
+# A developer-focused configuration overlay for ZeroClaw that prioritizes
+# productivity over restrictive defaults. Intended for local development
+# environments where the operator trusts the model and wants minimal friction.
+#
+# WARNING: This config disables most safety guardrails. Do NOT use this in
+# production, shared CI environments, or any context where untrusted input
+# may reach the agent.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# [autonomy] - Controls how much freedom the agent has to act without asking.
+#
+# "full" autonomy means the agent will execute tool calls without waiting for
+# human confirmation. Combined with disabled risk checks, this lets the agent
+# work uninterrupted through multi-step tasks (builds, deploys, refactors).
+# -----------------------------------------------------------------------------
+[autonomy]
+level = "full"
+
+# Allow the agent to operate outside the current workspace directory.
+# Useful when projects span multiple repos or need access to system tooling.
+workspace_only = false
+
+# Expanded command allowlist covering common dev toolchains.
+# The defaults (git, npm, cargo, ls, cat, grep, find, echo, pwd) are included
+# implicitly; these are the additions.
+allowed_commands = [
+    # Containers & orchestration
+    "docker",
+    "kubectl",
+
+    # Cloud CLIs
+    "aws",
+    "gcloud",
+    "terraform",
+    "vercel",
+
+    # Package managers & runtimes
+    "pip",
+    "python",
+    "node",
+    "npx",
+    "yarn",
+    "pnpm",
+    "go",
+    "ruby",
+    "gem",
+
+    # Build systems
+    "make",
+    "cmake",
+    "gradle",
+    "xcodebuild",
+    "xcrun",
+    "swift",
+
+    # System package managers
+    "brew",
+    "apt",
+
+    # Mobile
+    "adb",
+
+    # Network & file transfer
+    "ssh",
+    "scp",
+    "rsync",
+    "curl",
+    "wget",
+]
+
+# Do not gate medium-risk actions behind an approval prompt.
+require_approval_for_medium_risk = false
+
+# Do not block high-risk commands (e.g. rm -rf, git push --force).
+# The operator accepts responsibility for reviewing agent output.
+block_high_risk_commands = false
+
+# Tools that never require human approval, even if the risk heuristic flags
+# them. This list covers the core read/write/search/network loop that a
+# coding agent needs to stay in flow.
+auto_approve = [
+    "shell",
+    "file_read",
+    "file_write",
+    "file_edit",
+    "glob_search",
+    "content_search",
+    "git_operations",
+    "browser",
+    "screenshot",
+    "http_request",
+    "web_fetch",
+    "web_search",
+    "delegate",
+]
+
+
+# -----------------------------------------------------------------------------
+# [security.sandbox] - OS-level sandboxing for agent-spawned processes.
+#
+# Disabled here because sandboxing (Landlock, Firejail, etc.) can interfere
+# with Docker-in-Docker, cloud CLI credential helpers, and Xcode toolchains.
+# Re-enable if you run this config in a less trusted context.
+# -----------------------------------------------------------------------------
+[security.sandbox]
+enabled = false
+backend = "None"
+
+
+# =============================================================================
+# Delegate Agent Definitions
+# =============================================================================
+#
+# Each [agents.<name>] block defines a sub-agent that the orchestrator can
+# delegate tasks to. Setting agentic = true means the delegate can use tools
+# autonomously (up to max_iterations) rather than returning a single response.
+#
+# The allowed_tools list restricts what each delegate can do. Keep it tight
+# even in a relaxed config -- delegates don't usually need browser or network
+# access unless you add it explicitly.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# claude_code - Anthropic Claude as a coding sub-agent.
+#
+# Primary delegate for complex refactors, multi-file edits, and code review.
+# Uses the same Anthropic API that powers the orchestrator.
+# -----------------------------------------------------------------------------
+[agents.claude_code]
+provider = "anthropic"
+model = "claude-sonnet-4-20250514"
+agentic = true
+max_depth = 5
+max_iterations = 25
+system_prompt = """\
+You are a senior software engineer acting as a delegate agent inside CodeClaw. \
+Your job is to complete coding tasks precisely: read the relevant files, make \
+edits, run tests, and confirm the change works. Prefer small, focused commits. \
+Always explain your reasoning before acting.\
+"""
+allowed_tools = [
+    "shell",
+    "file_read",
+    "file_write",
+    "file_edit",
+    "git_operations",
+    "content_search",
+    "glob_search",
+]
+
+
+# -----------------------------------------------------------------------------
+# codex - OpenAI Codex / GPT as a coding sub-agent.
+#
+# Useful as a second opinion or for tasks where OpenAI models excel (e.g.
+# generating boilerplate, translating between languages).
+# -----------------------------------------------------------------------------
+[agents.codex]
+provider = "openai"
+model = "gpt-4o"
+agentic = true
+max_depth = 4
+max_iterations = 20
+system_prompt = """\
+You are a coding assistant delegate inside CodeClaw. You receive well-scoped \
+tasks -- implement features, fix bugs, write tests. Use the available tools to \
+read context, make changes, and verify correctness. Be concise in explanations.\
+"""
+allowed_tools = [
+    "shell",
+    "file_read",
+    "file_write",
+    "file_edit",
+    "git_operations",
+    "content_search",
+    "glob_search",
+]
+
+
+# -----------------------------------------------------------------------------
+# opencode - A general-purpose open-model delegate.
+#
+# Backed by a locally-hosted or open-weight model endpoint. Suitable for
+# lower-stakes tasks like formatting, linting, or mechanical refactors where
+# latency and cost matter more than peak capability.
+# -----------------------------------------------------------------------------
+[agents.opencode]
+provider = "openai"          # most open-model servers expose an OpenAI-compat API
+model = "deepseek-coder"
+agentic = true
+max_depth = 3
+max_iterations = 15
+system_prompt = """\
+You are a lean coding delegate inside CodeClaw. Handle straightforward tasks \
+quickly: apply renames, fix lint errors, reformat files, generate simple \
+boilerplate. Stick to the tools provided and keep iterations minimal.\
+"""
+allowed_tools = [
+    "shell",
+    "file_read",
+    "file_write",
+    "file_edit",
+    "git_operations",
+    "content_search",
+    "glob_search",
+]
+
+
+# -----------------------------------------------------------------------------
+# cursor - Cursor-style IDE agent delegate.
+#
+# Models the interaction pattern of Cursor's agent mode. Useful for tasks
+# that benefit from tight edit-then-verify loops with file-level context.
+# -----------------------------------------------------------------------------
+[agents.cursor]
+provider = "anthropic"
+model = "claude-sonnet-4-20250514"
+agentic = true
+max_depth = 4
+max_iterations = 20
+system_prompt = """\
+You are an IDE-integrated coding agent delegate inside CodeClaw, modeled after \
+Cursor's agent mode. Focus on iterative, file-scoped edits: read a file, make \
+a targeted change, verify with a build or test, and repeat. Prefer precision \
+over breadth.\
+"""
+allowed_tools = [
+    "shell",
+    "file_read",
+    "file_write",
+    "file_edit",
+    "git_operations",
+    "content_search",
+    "glob_search",
+]
