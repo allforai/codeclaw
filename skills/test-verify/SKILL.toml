@@ -1,0 +1,34 @@
+[skill]
+name = "Test Verify"
+description = "Run tests, collect pass/fail results, and capture browser screenshots on failure for debugging"
+version = "1.0.0"
+author = "CodeClaw"
+tags = ["testing", "verification", "ci"]
+
+[[tools]]
+name = "run-tests"
+description = "Execute the project test suite and capture results"
+kind = "shell"
+command = "cargo test"
+
+[tools.args]
+args = "-- --nocapture"
+
+[[tools]]
+name = "run-tests-filtered"
+description = "Run a specific subset of tests by name filter"
+kind = "shell"
+command = "cargo test"
+
+[tools.args]
+filter = ""
+
+[[tools]]
+name = "screenshot-failure"
+description = "Take a browser screenshot to capture UI state on test failure"
+kind = "http"
+command = "browser_screenshot"
+
+[tools.args]
+trigger = "on_failure"
+output_dir = "./test-artifacts"

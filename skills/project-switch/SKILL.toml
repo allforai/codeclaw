@@ -1,0 +1,34 @@
+[skill]
+name = "Project Switch"
+description = "Switch the active project context by updating memory store and changing to the project directory"
+version = "1.0.0"
+author = "CodeClaw"
+tags = ["project", "context", "workflow"]
+
+[[tools]]
+name = "set-active-project"
+description = "Store the active project name and path in the memory store"
+kind = "script"
+command = "memory_store"
+
+[tools.args]
+action = "set"
+key = "active_project"
+
+[[tools]]
+name = "navigate-project"
+description = "Change to the target project directory"
+kind = "shell"
+command = "cd"
+
+[tools.args]
+path = ""
+
+[[tools]]
+name = "load-project-config"
+description = "Read the project configuration file to restore context"
+kind = "shell"
+command = "cat"
+
+[tools.args]
+file = "zeroclaw.toml"

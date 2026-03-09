@@ -1,0 +1,38 @@
+[skill]
+name = "Deploy Check"
+description = "Run a pre-deployment checklist covering uncommitted changes, test results, and dependency audits"
+version = "1.0.0"
+author = "CodeClaw"
+tags = ["deployment", "safety", "checklist"]
+
+[[tools]]
+name = "check-git-status"
+description = "Verify there are no uncommitted or untracked changes"
+kind = "shell"
+command = "git status --porcelain"
+
+[tools.args]
+
+[[tools]]
+name = "run-tests"
+description = "Run the full test suite to confirm all tests pass before deploy"
+kind = "shell"
+command = "cargo test"
+
+[tools.args]
+
+[[tools]]
+name = "audit-dependencies"
+description = "Audit project dependencies for known vulnerabilities"
+kind = "shell"
+command = "cargo audit"
+
+[tools.args]
+
+[[tools]]
+name = "check-branch"
+description = "Verify the current branch and its sync status with the remote"
+kind = "shell"
+command = "git log --oneline origin/main..HEAD"
+
+[tools.args]

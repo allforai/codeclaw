@@ -1,0 +1,33 @@
+[skill]
+name = "Code Review"
+description = "Read git diff, analyze risk levels, and output a structured code review with security and quality findings"
+version = "1.0.0"
+author = "CodeClaw"
+tags = ["review", "quality", "security"]
+
+[[tools]]
+name = "git-diff"
+description = "Capture the current git diff for review analysis"
+kind = "shell"
+command = "git diff"
+
+[tools.args]
+staged = "--cached"
+
+[[tools]]
+name = "git-diff-branch"
+description = "Capture the diff between the current branch and a target branch"
+kind = "shell"
+command = "git diff"
+
+[tools.args]
+target = "main"
+
+[[tools]]
+name = "analyze-review"
+description = "Delegate structured code review analysis to the AI agent"
+kind = "script"
+command = "claude_code"
+
+[tools.args]
+task = "analyze_diff"
