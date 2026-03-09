@@ -275,11 +275,60 @@ Development-focused skills to add to `~/.zeroclaw/workspace/skills/`:
 - Simulator lifecycle management
 - Code signing / provisioning profile handling
 
-## 9. Design Principles
+## 9. Architecture: Driver/Car Model
 
-1. **Minimal diff from ZeroClaw** - Keep fork maintainable, easy to sync upstream
-2. **Configuration over code** - Prefer config changes over new Rust modules
-3. **Project-first** - Everything organized around projects, not conversations
-4. **Executor-agnostic** - Claude Code / Codex / Cursor are interchangeable tools
-5. **Artifact-driven** - Results must have evidence (screenshots, diffs, logs)
-6. **Permissive security** - Trust the developer, block only truly dangerous operations
+ZeroClaw = driver (orchestration), Claude Code = car (execution). They are independent systems with separate API keys, configs, accounts, and permissions.
+
+### Responsibility Split
+
+| Layer | ZeroClaw (Driver) | Claude Code (Car) |
+|-------|-------------------|-------------------|
+| **Tools** | shell, cron, channels, memory, browser/screenshot, delegate | Read/Write/Edit, Grep/Glob, Bash(git), Playwright MCP |
+| **Memory** | Scheduling-level: which project failed last, run history | Project-level: code conventions, bug history (.claude/) |
+| **Workflows** | Coarse-grained SOPs: route task → delegate → collect artifacts → notify | Fine-grained: analyze → fix → test → verify (internal) |
+| **Permissions** | Controls what gets delegated | Controls what gets executed |
+| **Config** | ~/.codeclaw/config.toml | ~/.claude/settings.json + CLAUDE.md |
+
+### Permission Bridge: Hooks + HTTP API
+
+When Claude Code blocks an operation (permission prompt), ZeroClaw acts as approval proxy via Claude Code's hook system:
+
+```
+Claude Code hook (PreToolUse)
+  → HTTP call to ZeroClaw gateway: POST /approve?tool=Bash&command=git+push+--force
+  → ZeroClaw checks policy:
+      - auto_approve list → return allow
+      - require_approval list → forward to human via channel (Telegram/Slack)
+      - human responds → ZeroClaw returns allow/deny
+  → Claude Code proceeds or aborts
+```
+
+Implementation:
+
+1. **ZeroClaw side**: Add `/approve` endpoint to existing axum gateway. Check against `autonomy.auto_approve` and `autonomy.always_ask` config. For human-approval items, send to active channel and wait for response.
+
+2. **Claude Code side**: Configure hook in `.claude/settings.json`:
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "command": "curl -sf http://localhost:${CODECLAW_PORT}/approve -d '{\"tool\":\"$CLAUDE_TOOL_NAME\",\"input\":\"$CLAUDE_TOOL_INPUT\"}'"
+    }]
+  }
+}
+```
+
+3. **Channel flow**: ZeroClaw receives approval request → sends to Telegram/Slack → waits for human reply → returns result to hook.
+
+This bridges the driver and car: ZeroClaw's security policy governs Claude Code's execution without the two systems needing to share config or credentials.
+
+## 10. Design Principles
+
+1. **Driver/Car separation** - ZeroClaw orchestrates, CLI agents execute. Don't micromanage.
+2. **Minimal diff from ZeroClaw** - Keep fork maintainable, easy to sync upstream
+3. **Configuration over code** - Prefer config changes over new Rust modules
+4. **Project-first** - Everything organized around projects, not conversations
+5. **Executor-agnostic** - Claude Code / Codex / Cursor are interchangeable tools
+6. **Artifact-driven** - Results must have evidence (screenshots, diffs, logs)
+7. **Permissive security** - Trust the developer, block only truly dangerous operations
+8. **Memory split** - ZeroClaw owns scheduling memory, Claude Code owns project memory
