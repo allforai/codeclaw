@@ -1,0 +1,22 @@
+[[projects]]
+id = "web-admin"
+name = "Admin Dashboard"
+local_path = "/tmp/codeclaw-test-web"
+tech_stack = ["typescript", "react"]
+default_branch = "main"
+build_cmd = "npm run build"
+test_cmd = "npm test"
+dev_cmd = "npm run dev"
+browser_base_url = "http://localhost:3000"
+preferred_agents = ["claude_code"]
+
+[[projects]]
+id = "api-server"
+name = "Backend API"
+local_path = "/tmp/codeclaw-test-api"
+tech_stack = ["go"]
+default_branch = "main"
+build_cmd = "go build ./..."
+test_cmd = "go test ./..."
+dev_cmd = "go run ./cmd/server"
+preferred_agents = ["codex", "claude_code"]

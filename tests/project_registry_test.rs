@@ -1,5 +1,5 @@
-use codeclaw::config::ProjectConfig;
-use codeclaw::project::ProjectRegistry;
+use zeroclaw::config::ProjectConfig;
+use zeroclaw::project::ProjectRegistry;
 
 #[test]
 fn test_parse_project_config() {
