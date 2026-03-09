@@ -5886,10 +5886,10 @@ mod tests {
         let _workspace_env = EnvVarGuard::unset("ZEROCLAW_WORKSPACE");
         let _config_env = EnvVarGuard::unset("ZEROCLAW_CONFIG_DIR");
         let tmp = TempDir::new().unwrap();
-        let zeroclaw_dir = tmp.path().join(".zeroclaw");
-        let config_path = zeroclaw_dir.join("config.toml");
+        let codeclaw_dir = tmp.path().join(".codeclaw");
+        let config_path = codeclaw_dir.join("config.toml");
 
-        tokio::fs::create_dir_all(&zeroclaw_dir).await.unwrap();
+        tokio::fs::create_dir_all(&codeclaw_dir).await.unwrap();
         tokio::fs::write(&config_path, "default_provider = \"openrouter\"\n")
             .await
             .unwrap();
@@ -5953,7 +5953,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let workspace_root = tmp.path().join("zeroclaw-data");
         let workspace_dir = workspace_root.join("workspace");
-        let expected_config_path = workspace_root.join(".zeroclaw").join("config.toml");
+        let expected_config_path = workspace_root.join(".codeclaw").join("config.toml");
 
         let _workspace_env = EnvVarGuard::set(
             "ZEROCLAW_WORKSPACE",
@@ -6160,8 +6160,8 @@ mod tests {
             .await
             .unwrap();
         assert!(
-            identity.contains("**Name:** ZeroClaw"),
-            "should default agent name to ZeroClaw"
+            identity.contains("**Name:** CodeClaw"),
+            "should default agent name to CodeClaw"
         );
 
         let user_md = tokio::fs::read_to_string(tmp.path().join("USER.md"))

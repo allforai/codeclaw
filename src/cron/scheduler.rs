@@ -707,13 +707,29 @@ mod tests {
     #[tokio::test]
     async fn run_agent_job_returns_error_without_provider_key() {
         let tmp = TempDir::new().unwrap();
-        let config = test_config(&tmp).await;
+        let mut config = test_config(&tmp).await;
+        config.api_key = None;
+        config.default_provider = None;
         let mut job = test_job("");
         job.job_type = JobType::Agent;
         job.prompt = Some("Say hello".into());
         let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
 
+        // Temporarily clear env API keys so the agent cannot authenticate
+        let saved_zeroclaw_key = std::env::var("ZEROCLAW_API_KEY").ok();
+        let saved_api_key = std::env::var("API_KEY").ok();
+        let saved_openrouter_key = std::env::var("OPENROUTER_API_KEY").ok();
+        std::env::remove_var("ZEROCLAW_API_KEY");
+        std::env::remove_var("API_KEY");
+        std::env::remove_var("OPENROUTER_API_KEY");
+
         let (success, output) = run_agent_job(&config, &security, &job).await;
+
+        // Restore env vars
+        if let Some(k) = saved_zeroclaw_key { std::env::set_var("ZEROCLAW_API_KEY", k); }
+        if let Some(k) = saved_api_key { std::env::set_var("API_KEY", k); }
+        if let Some(k) = saved_openrouter_key { std::env::set_var("OPENROUTER_API_KEY", k); }
+
         assert!(!success);
         assert!(output.contains("agent job failed:"));
     }

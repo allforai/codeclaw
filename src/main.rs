@@ -1925,7 +1925,7 @@ mod tests {
             .expect("completion generation should succeed");
         let script = String::from_utf8(output).expect("completion output should be valid utf-8");
         assert!(
-            script.contains("zeroclaw"),
+            script.contains("codeclaw"),
             "completion script should reference binary name"
         );
     }

@@ -6822,7 +6822,7 @@ requires_openai_auth = true
         let temp_home =
             std::env::temp_dir().join(format!("zeroclaw_test_home_{}", uuid::Uuid::new_v4()));
         let workspace_dir = temp_home.join("workspace");
-        let legacy_config_path = temp_home.join(".zeroclaw").join("config.toml");
+        let legacy_config_path = temp_home.join(".codeclaw").join("config.toml");
 
         let original_home = std::env::var("HOME").ok();
         std::env::set_var("HOME", &temp_home);
@@ -6849,7 +6849,7 @@ requires_openai_auth = true
         let temp_home =
             std::env::temp_dir().join(format!("zeroclaw_test_home_{}", uuid::Uuid::new_v4()));
         let workspace_dir = temp_home.join("custom-workspace");
-        let legacy_config_dir = temp_home.join(".zeroclaw");
+        let legacy_config_dir = temp_home.join(".codeclaw");
         let legacy_config_path = legacy_config_dir.join("config.toml");
 
         fs::create_dir_all(&legacy_config_dir).await.unwrap();
@@ -6960,7 +6960,7 @@ default_model = "legacy-model"
         let _env_guard = env_override_lock().await;
         let temp_home =
             std::env::temp_dir().join(format!("zeroclaw_test_home_{}", uuid::Uuid::new_v4()));
-        let default_config_dir = temp_home.join(".zeroclaw");
+        let default_config_dir = temp_home.join(".codeclaw");
         let custom_config_dir = temp_home.join("profiles").join("custom-profile");
         let marker_path = default_config_dir.join(ACTIVE_WORKSPACE_STATE_FILE);
 

@@ -1111,12 +1111,12 @@ mod tests {
     fn linux_service_file_has_expected_suffix() {
         let file = linux_service_file(&Config::default()).unwrap();
         let path = file.to_string_lossy();
-        assert!(path.ends_with(".config/systemd/user/zeroclaw.service"));
+        assert!(path.ends_with(".config/systemd/user/codeclaw.service"));
     }
 
     #[test]
     fn windows_task_name_is_constant() {
-        assert_eq!(windows_task_name(), "ZeroClaw Daemon");
+        assert_eq!(windows_task_name(), "CodeClaw Daemon");
     }
 
     #[cfg(target_os = "windows")]
@@ -1175,22 +1175,22 @@ mod tests {
     fn generate_openrc_script_contains_required_directives() {
         use std::path::PathBuf;
 
-        let exe_path = PathBuf::from("/usr/local/bin/zeroclaw");
-        let script = generate_openrc_script(&exe_path, Path::new("/etc/zeroclaw"));
+        let exe_path = PathBuf::from("/usr/local/bin/codeclaw");
+        let script = generate_openrc_script(&exe_path, Path::new("/etc/codeclaw"));
 
         assert!(script.starts_with("#!/sbin/openrc-run"));
-        assert!(script.contains("name=\"zeroclaw\""));
-        assert!(script.contains("description=\"ZeroClaw daemon\""));
-        assert!(script.contains("command=\"/usr/local/bin/zeroclaw\""));
-        assert!(script.contains("command_args=\"--config-dir /etc/zeroclaw daemon\""));
+        assert!(script.contains("name=\"codeclaw\""));
+        assert!(script.contains("description=\"CodeClaw daemon\""));
+        assert!(script.contains("command=\"/usr/local/bin/codeclaw\""));
+        assert!(script.contains("command_args=\"--config-dir /etc/codeclaw daemon\""));
         assert!(!script.contains("env ZEROCLAW_CONFIG_DIR"));
         assert!(!script.contains("env ZEROCLAW_WORKSPACE"));
         assert!(script.contains("command_background=\"yes\""));
-        assert!(script.contains("command_user=\"zeroclaw:zeroclaw\""));
+        assert!(script.contains("command_user=\"codeclaw:codeclaw\""));
         assert!(script.contains("pidfile=\"/run/${RC_SVCNAME}.pid\""));
         assert!(script.contains("umask 027"));
-        assert!(script.contains("output_log=\"/var/log/zeroclaw/access.log\""));
-        assert!(script.contains("error_log=\"/var/log/zeroclaw/error.log\""));
+        assert!(script.contains("output_log=\"/var/log/codeclaw/access.log\""));
+        assert!(script.contains("error_log=\"/var/log/codeclaw/error.log\""));
         assert!(script.contains("depend()"));
         assert!(script.contains("need net"));
         assert!(script.contains("after firewall"));
@@ -1225,17 +1225,17 @@ mod tests {
     #[test]
     fn openrc_writability_probe_prefers_runuser_when_available() {
         let (program, args) =
-            build_openrc_writability_probe_command(Path::new("/etc/zeroclaw"), true);
+            build_openrc_writability_probe_command(Path::new("/etc/codeclaw"), true);
         assert_eq!(program, "runuser");
         assert_eq!(
             args,
             vec![
                 "-u".to_string(),
-                "zeroclaw".to_string(),
+                "codeclaw".to_string(),
                 "--".to_string(),
                 "sh".to_string(),
                 "-c".to_string(),
-                "test -w '/etc/zeroclaw'".to_string()
+                "test -w '/etc/codeclaw'".to_string()
             ]
         );
     }
@@ -1244,7 +1244,7 @@ mod tests {
     #[test]
     fn openrc_writability_probe_falls_back_to_su() {
         let (program, args) =
-            build_openrc_writability_probe_command(Path::new("/etc/zeroclaw/workspace"), false);
+            build_openrc_writability_probe_command(Path::new("/etc/codeclaw/workspace"), false);
         assert_eq!(program, "su");
         assert_eq!(
             args,
@@ -1252,8 +1252,8 @@ mod tests {
                 "-s".to_string(),
                 "/bin/sh".to_string(),
                 "-c".to_string(),
-                "test -w '/etc/zeroclaw/workspace'".to_string(),
-                "zeroclaw".to_string()
+                "test -w '/etc/codeclaw/workspace'".to_string(),
+                "codeclaw".to_string()
             ]
         );
     }
