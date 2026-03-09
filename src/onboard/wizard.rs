@@ -633,9 +633,9 @@ async fn run_quick_setup_with_home(
             println!("    4. Gateway:           codeclaw gateway");
         }
     } else {
-        println!("    1. Chat:     zeroclaw agent -m \"Hello!\"");
-        println!("    2. Gateway:  zeroclaw gateway");
-        println!("    3. Status:   zeroclaw status");
+        println!("    1. Chat:     codeclaw agent -m \"Hello!\"");
+        println!("    2. Gateway:  codeclaw gateway");
+        println!("    3. Status:   codeclaw status");
     }
     println!();
 
@@ -1757,7 +1757,7 @@ pub async fn run_models_refresh(
             print_model_preview(&cached.models);
             println!();
             println!(
-                "Tip: run `zeroclaw models refresh --force --provider {}` to fetch latest now.",
+                "Tip: run `codeclaw models refresh --force --provider {}` to fetch latest now.",
                 provider_name
             );
             return Ok(());
@@ -1820,7 +1820,7 @@ pub async fn run_models_list(config: &Config, provider_override: Option<&str>) -
     let Some(cached) = cached else {
         println!();
         println!(
-            "  No cached models for '{provider_name}'. Run: zeroclaw models refresh --provider {provider_name}"
+            "  No cached models for '{provider_name}'. Run: codeclaw models refresh --provider {provider_name}"
         );
         println!();
         return Ok(());
@@ -2209,7 +2209,7 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
             style("Custom Provider Setup").white().bold(),
             style("— any OpenAI-compatible API").dim()
         );
-        print_bullet("ZeroClaw works with ANY API that speaks the OpenAI chat completions format.");
+        print_bullet("CodeClaw works with ANY API that speaks the OpenAI chat completions format.");
         print_bullet("Examples: LiteLLM, LocalAI, vLLM, text-generation-webui, LM Studio, etc.");
         println!();
 
@@ -2440,7 +2440,7 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
                 "{} Gemini CLI credentials detected! You can skip the API key.",
                 style("✓").green().bold()
             ));
-            print_bullet("ZeroClaw will reuse your existing Gemini CLI authentication.");
+            print_bullet("CodeClaw will reuse your existing Gemini CLI authentication.");
             println!();
 
             let use_cli: bool = dialoguer::Confirm::new()
@@ -2906,7 +2906,7 @@ fn provider_supports_device_flow(provider_name: &str) -> bool {
 // ── Step 5: Tool Mode & Security ────────────────────────────────
 
 fn setup_tool_mode() -> Result<(ComposioConfig, SecretsConfig)> {
-    print_bullet("Choose how ZeroClaw connects to external apps.");
+    print_bullet("Choose how CodeClaw connects to external apps.");
     print_bullet("You can always change this later in config.toml.");
     println!();
 
@@ -2929,7 +2929,7 @@ fn setup_tool_mode() -> Result<(ComposioConfig, SecretsConfig)> {
             style("— 1000+ OAuth integrations (Gmail, Notion, GitHub, Slack, ...)").dim()
         );
         print_bullet("Get your API key at: https://app.composio.dev/settings");
-        print_bullet("ZeroClaw uses Composio as a tool — your core agent stays local.");
+        print_bullet("CodeClaw uses Composio as a tool — your core agent stays local.");
         println!();
 
         let api_key: String = Input::new()
@@ -2966,7 +2966,7 @@ fn setup_tool_mode() -> Result<(ComposioConfig, SecretsConfig)> {
 
     // ── Encrypted secrets ──
     println!();
-    print_bullet("ZeroClaw can encrypt API keys stored in config.toml.");
+    print_bullet("CodeClaw can encrypt API keys stored in config.toml.");
     print_bullet("A local key file protects against plaintext exposure and accidental leaks.");
 
     let encrypt = Confirm::new()
@@ -2996,7 +2996,7 @@ fn setup_tool_mode() -> Result<(ComposioConfig, SecretsConfig)> {
 // ── Step 6: Hardware (Physical World) ───────────────────────────
 
 fn setup_hardware() -> Result<HardwareConfig> {
-    print_bullet("ZeroClaw can talk to physical hardware (LEDs, sensors, motors).");
+    print_bullet("CodeClaw can talk to physical hardware (LEDs, sensors, motors).");
     print_bullet("Scanning for connected devices...");
     println!();
 
@@ -3053,7 +3053,7 @@ fn setup_hardware() -> Result<HardwareConfig> {
     let recommended = hardware::recommended_wizard_default(&devices);
 
     let choice = Select::new()
-        .with_prompt("  How should ZeroClaw interact with the physical world?")
+        .with_prompt("  How should CodeClaw interact with the physical world?")
         .items(&options)
         .default(recommended)
         .interact()?;
@@ -3228,7 +3228,7 @@ fn setup_project_context() -> Result<ProjectContext> {
 
     let agent_name: String = Input::new()
         .with_prompt("  Agent name")
-        .default("ZeroClaw".into())
+        .default("CodeClaw".into())
         .interact_text()?;
 
     let style_options = vec![
@@ -3282,7 +3282,7 @@ fn setup_project_context() -> Result<ProjectContext> {
 // ── Step 6: Memory Configuration ───────────────────────────────
 
 fn setup_memory() -> Result<MemoryConfig> {
-    print_bullet("Choose how ZeroClaw stores and searches memories.");
+    print_bullet("Choose how CodeClaw stores and searches memories.");
     print_bullet("You can always change this later in config.toml.");
     println!();
 
@@ -3367,7 +3367,7 @@ fn channel_menu_choices() -> &'static [ChannelMenuChoice] {
 
 #[allow(clippy::too_many_lines)]
 fn setup_channels() -> Result<ChannelsConfig> {
-    print_bullet("Channels let you talk to ZeroClaw from anywhere.");
+    print_bullet("Channels let you talk to CodeClaw from anywhere.");
     print_bullet("CLI is always available. Connect more channels now.");
     println!();
 
@@ -3530,7 +3530,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 println!(
                     "  {} {}",
                     style("Telegram Setup").white().bold(),
-                    style("— talk to ZeroClaw from Telegram").dim()
+                    style("— talk to CodeClaw from Telegram").dim()
                 );
                 print_bullet("1. Open Telegram and message @BotFather");
                 print_bullet("2. Send /newbot and follow the prompts");
@@ -3628,7 +3628,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 println!(
                     "  {} {}",
                     style("Discord Setup").white().bold(),
-                    style("— talk to ZeroClaw from Discord").dim()
+                    style("— talk to CodeClaw from Discord").dim()
                 );
                 print_bullet("1. Go to https://discord.com/developers/applications");
                 print_bullet("2. Create a New Application → Bot → Copy token");
@@ -3727,7 +3727,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 println!(
                     "  {} {}",
                     style("Slack Setup").white().bold(),
-                    style("— talk to ZeroClaw from Slack").dim()
+                    style("— talk to CodeClaw from Slack").dim()
                 );
                 print_bullet("1. Go to https://api.slack.com/apps → Create New App");
                 print_bullet("2. Add Bot Token Scopes: chat:write, channels:history");
@@ -3865,7 +3865,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     continue;
                 }
 
-                print_bullet("ZeroClaw reads your iMessage database and replies via AppleScript.");
+                print_bullet("CodeClaw reads your iMessage database and replies via AppleScript.");
                 print_bullet(
                     "You need to grant Full Disk Access to your terminal in System Settings.",
                 );
@@ -4126,7 +4126,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
 
                     let session_path: String = Input::new()
                         .with_prompt("  Session database path")
-                        .default("~/.zeroclaw/state/whatsapp-web/session.db".into())
+                        .default("~/.codeclaw/state/whatsapp-web/session.db".into())
                         .interact_text()?;
 
                     if session_path.trim().is_empty() {
@@ -4216,7 +4216,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
 
                 let verify_token: String = Input::new()
                     .with_prompt("  Webhook verify token (create your own)")
-                    .default("zeroclaw-whatsapp-verify".into())
+                    .default("codeclaw-whatsapp-verify".into())
                     .interact_text()?;
 
                 // Test connection (run entirely in separate thread — Response must be used/dropped there)
@@ -4775,7 +4775,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 println!(
                     "  {} {}",
                     style(format!("{provider_label} Setup")).white().bold(),
-                    style(format!("— talk to ZeroClaw from {provider_label}")).dim()
+                    style(format!("— talk to CodeClaw from {provider_label}")).dim()
                 );
                 print_bullet(&format!(
                     "1. Go to {provider_label} Open Platform ({provider_host})"
@@ -4953,7 +4953,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     style("Nostr Setup").white().bold(),
                     style("— private messages via NIP-04 & NIP-17").dim()
                 );
-                print_bullet("ZeroClaw will listen for encrypted DMs on Nostr relays.");
+                print_bullet("CodeClaw will listen for encrypted DMs on Nostr relays.");
                 print_bullet("You need a Nostr private key (hex or nsec) and at least one relay.");
                 println!();
 
@@ -5215,7 +5215,7 @@ fn setup_tunnel() -> Result<crate::config::TunnelConfig> {
 #[allow(clippy::too_many_lines)]
 async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Result<()> {
     let agent = if ctx.agent_name.is_empty() {
-        "ZeroClaw"
+        "CodeClaw"
     } else {
         &ctx.agent_name
     };
@@ -5502,7 +5502,7 @@ fn print_summary(config: &Config) {
     println!(
         "  {}  {}",
         style("⚡").cyan(),
-        style("ZeroClaw is ready!").white().bold()
+        style("CodeClaw is ready!").white().bold()
     );
     println!(
         "  {}",
@@ -5647,7 +5647,7 @@ fn print_summary(config: &Config) {
             );
             println!(
                 "       {}",
-                style("zeroclaw auth login --provider openai-codex --device-code").yellow()
+                style("codeclaw auth login --provider openai-codex --device-code").yellow()
             );
         } else if provider == "anthropic" {
             println!(
@@ -5661,7 +5661,7 @@ fn print_summary(config: &Config) {
             println!(
                 "       {}",
                 style(
-                    "or: zeroclaw auth paste-token --provider anthropic --auth-kind authorization"
+                    "or: codeclaw auth paste-token --provider anthropic --auth-kind authorization"
                 )
                 .yellow()
             );
@@ -5687,7 +5687,7 @@ fn print_summary(config: &Config) {
             style(format!("{step}.")).cyan().bold(),
             style("Launch your channels").white().bold()
         );
-        println!("       {}", style("zeroclaw channel start").yellow());
+        println!("       {}", style("codeclaw channel start").yellow());
         println!();
         step += 1;
     }
@@ -5698,7 +5698,7 @@ fn print_summary(config: &Config) {
     );
     println!(
         "       {}",
-        style("zeroclaw agent -m \"Hello, ZeroClaw!\"").yellow()
+        style("codeclaw agent -m \"Hello, CodeClaw!\"").yellow()
     );
     println!();
     step += 1;
@@ -5707,7 +5707,7 @@ fn print_summary(config: &Config) {
         "    {} Start interactive CLI mode:",
         style(format!("{step}.")).cyan().bold()
     );
-    println!("       {}", style("zeroclaw agent").yellow());
+    println!("       {}", style("codeclaw agent").yellow());
     println!();
     step += 1;
 
@@ -5715,7 +5715,7 @@ fn print_summary(config: &Config) {
         "    {} Check full status:",
         style(format!("{step}.")).cyan().bold()
     );
-    println!("       {}", style("zeroclaw status").yellow());
+    println!("       {}", style("codeclaw status").yellow());
 
     println!();
     println!(

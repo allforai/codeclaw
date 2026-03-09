@@ -93,10 +93,36 @@ impl fmt::Display for SopTrigger {
     }
 }
 
+// ── Retry Policy ────────────────────────────────────────────────
+
+/// Retry policy for a step: how many times to attempt and backoff between attempts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RetryPolicy {
+    /// Maximum number of attempts (including the first). Default: 1 (no retry).
+    #[serde(default = "default_max_attempts")]
+    pub max_attempts: u32,
+    /// Seconds to wait between retry attempts. Default: 0.
+    #[serde(default)]
+    pub backoff_secs: u64,
+}
+
+impl Default for RetryPolicy {
+    fn default() -> Self {
+        Self {
+            max_attempts: 1,
+            backoff_secs: 0,
+        }
+    }
+}
+
+fn default_max_attempts() -> u32 {
+    1
+}
+
 // ── Step ────────────────────────────────────────────────────────
 
 /// A single step in an SOP procedure, parsed from SOP.md.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct SopStep {
     pub number: u32,
     pub title: String,
@@ -105,6 +131,12 @@ pub struct SopStep {
     pub suggested_tools: Vec<String>,
     #[serde(default)]
     pub requires_confirmation: bool,
+    /// Optional condition expression; if present and evaluates to false, step is skipped.
+    #[serde(default)]
+    pub condition: Option<String>,
+    /// Optional retry policy for the step.
+    #[serde(default)]
+    pub retry: Option<RetryPolicy>,
 }
 
 // ── SOP ─────────────────────────────────────────────────────────
@@ -259,6 +291,16 @@ pub struct SopStepResult {
     pub output: String,
     pub started_at: String,
     pub completed_at: Option<String>,
+    /// Number of attempts made (1 = first try succeeded, >1 = retried).
+    #[serde(default = "default_attempts")]
+    pub attempts: u32,
+    /// Whether this step was skipped due to a condition evaluating to false.
+    #[serde(default)]
+    pub skipped_by_condition: bool,
+}
+
+fn default_attempts() -> u32 {
+    1
 }
 
 /// A full SOP execution run (from trigger to completion).
@@ -457,6 +499,8 @@ path = "/sop/test"
                 output: "Step 1 done".into(),
                 started_at: "2026-02-19T12:00:00Z".into(),
                 completed_at: Some("2026-02-19T12:00:05Z".into()),
+                attempts: 1,
+                skipped_by_condition: false,
             }],
             waiting_since: None,
         };

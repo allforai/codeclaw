@@ -3,21 +3,21 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 
-const BRIDGE_APP_NAME: &str = "zeroclaw-uno-q-bridge";
+const BRIDGE_APP_NAME: &str = "codeclaw-uno-q-bridge";
 
 /// Deploy the Bridge app. If host is Some, scp from repo and ssh to start.
 /// If host is None, assume we're ON the Uno Q — use embedded files and start.
 pub fn setup_uno_q_bridge(host: Option<&str>) -> Result<()> {
     let bridge_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("firmware")
-        .join("zeroclaw-uno-q-bridge");
+        .join("codeclaw-uno-q-bridge");
 
     if let Some(h) = host {
         if bridge_dir.exists() {
             deploy_remote(h, &bridge_dir)?;
         } else {
             anyhow::bail!(
-                "Bridge app not found at {}. Run from zeroclaw repo root.",
+                "Bridge app not found at {}. Run from codeclaw repo root.",
                 bridge_dir.display()
             );
         }
@@ -66,7 +66,7 @@ fn deploy_remote(host: &str, bridge_dir: &std::path::Path) -> Result<()> {
             "arduino-app-cli",
             "app",
             "start",
-            "~/ArduinoApps/zeroclaw-uno-q-bridge",
+            "~/ArduinoApps/codeclaw-uno-q-bridge",
         ])
         .status()
         .context("arduino-app-cli start failed")?;

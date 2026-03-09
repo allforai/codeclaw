@@ -361,7 +361,7 @@ impl Provider for OpenRouterProvider {
                 "HTTP-Referer",
                 "https://github.com/theonlyhennygod/zeroclaw",
             )
-            .header("X-Title", "ZeroClaw")
+            .header("X-Title", "CodeClaw")
             .json(&request)
             .send()
             .await?;
@@ -411,7 +411,7 @@ impl Provider for OpenRouterProvider {
                 "HTTP-Referer",
                 "https://github.com/theonlyhennygod/zeroclaw",
             )
-            .header("X-Title", "ZeroClaw")
+            .header("X-Title", "CodeClaw")
             .json(&request)
             .send()
             .await?;
@@ -459,7 +459,7 @@ impl Provider for OpenRouterProvider {
                 "HTTP-Referer",
                 "https://github.com/theonlyhennygod/zeroclaw",
             )
-            .header("X-Title", "ZeroClaw")
+            .header("X-Title", "CodeClaw")
             .json(&native_request)
             .send()
             .await?;
@@ -553,7 +553,7 @@ impl Provider for OpenRouterProvider {
                 "HTTP-Referer",
                 "https://github.com/theonlyhennygod/zeroclaw",
             )
-            .header("X-Title", "ZeroClaw")
+            .header("X-Title", "CodeClaw")
             .json(&native_request)
             .send()
             .await?;

@@ -141,8 +141,7 @@ mod tests {
                 number: 1,
                 title: "Step one".into(),
                 body: "Do it".into(),
-                suggested_tools: vec![],
-                requires_confirmation: false,
+                ..Default::default()
             }],
             cooldown_secs: 0,
             max_concurrent: 1,

@@ -14,8 +14,8 @@ pub use gates::GateEvalState;
 pub use metrics::SopMetricsCollector;
 #[allow(unused_imports)]
 pub use types::{
-    Sop, SopEvent, SopExecutionMode, SopPriority, SopRun, SopRunAction, SopRunStatus, SopStep,
-    SopStepResult, SopStepStatus, SopTrigger, SopTriggerSource,
+    RetryPolicy, Sop, SopEvent, SopExecutionMode, SopPriority, SopRun, SopRunAction,
+    SopRunStatus, SopStep, SopStepResult, SopStepStatus, SopTrigger, SopTriggerSource,
 };
 
 use anyhow::Result;
@@ -143,6 +143,8 @@ pub fn parse_steps(md: &str) -> Vec<SopStep> {
     let mut current_body = String::new();
     let mut current_tools: Vec<String> = Vec::new();
     let mut current_requires_confirmation = false;
+    let mut current_condition: Option<String> = None;
+    let mut current_retry: Option<types::RetryPolicy> = None;
 
     for line in md.lines() {
         let trimmed = line.trim();
@@ -164,6 +166,8 @@ pub fn parse_steps(md: &str) -> Vec<SopStep> {
                     &mut current_body,
                     &mut current_tools,
                     &mut current_requires_confirmation,
+                    &mut current_condition,
+                    &mut current_retry,
                 );
                 in_steps_section = false;
             }
@@ -184,6 +188,8 @@ pub fn parse_steps(md: &str) -> Vec<SopStep> {
                 &mut current_body,
                 &mut current_tools,
                 &mut current_requires_confirmation,
+                &mut current_condition,
+                &mut current_retry,
             );
 
             let step_num = u32::try_from(steps.len())
@@ -201,6 +207,8 @@ pub fn parse_steps(md: &str) -> Vec<SopStep> {
             }
             current_tools = Vec::new();
             current_requires_confirmation = false;
+            current_condition = None;
+            current_retry = None;
             continue;
         }
 
@@ -217,6 +225,10 @@ pub fn parse_steps(md: &str) -> Vec<SopStep> {
                 if let Some(val) = bullet.strip_prefix("requires_confirmation:") {
                     current_requires_confirmation = val.trim().eq_ignore_ascii_case("true");
                 }
+            } else if let Some(cond_str) = bullet.strip_prefix("condition:") {
+                current_condition = Some(cond_str.trim().to_string());
+            } else if let Some(retry_str) = bullet.strip_prefix("retry:") {
+                current_retry = Some(parse_retry_policy(retry_str.trim()));
             } else {
                 // Continuation body line
                 if !current_body.is_empty() {
@@ -244,6 +256,8 @@ pub fn parse_steps(md: &str) -> Vec<SopStep> {
         &mut current_body,
         &mut current_tools,
         &mut current_requires_confirmation,
+        &mut current_condition,
+        &mut current_retry,
     );
 
     steps
@@ -257,6 +271,8 @@ fn flush_step(
     body: &mut String,
     tools: &mut Vec<String>,
     requires_confirmation: &mut bool,
+    condition: &mut Option<String>,
+    retry: &mut Option<types::RetryPolicy>,
 ) {
     if let Some(n) = number.take() {
         steps.push(SopStep {
@@ -265,6 +281,8 @@ fn flush_step(
             body: body.trim().to_string(),
             suggested_tools: std::mem::take(tools),
             requires_confirmation: *requires_confirmation,
+            condition: condition.take(),
+            retry: retry.take(),
         });
         *body = String::new();
         *requires_confirmation = false;
@@ -300,6 +318,35 @@ fn extract_bold_title(text: &str) -> Option<(String, String)> {
         .trim();
 
     Some((title, rest.to_string()))
+}
+
+/// Parse a retry policy from a string like `"3, backoff 5s"` or just `"3"`.
+fn parse_retry_policy(input: &str) -> types::RetryPolicy {
+    let mut max_attempts: u32 = 1;
+    let mut backoff_secs: u64 = 0;
+
+    let parts: Vec<&str> = input.split(',').map(|s| s.trim()).collect();
+    if let Some(first) = parts.first() {
+        if let Ok(n) = first.parse::<u32>() {
+            max_attempts = n;
+        }
+    }
+    if let Some(second) = parts.get(1) {
+        // Parse "backoff 5s" or "backoff 10s"
+        let s = second.trim();
+        if let Some(rest) = s.strip_prefix("backoff") {
+            let rest = rest.trim();
+            let rest = rest.strip_suffix('s').unwrap_or(rest);
+            if let Ok(n) = rest.parse::<u64>() {
+                backoff_secs = n;
+            }
+        }
+    }
+
+    types::RetryPolicy {
+        max_attempts,
+        backoff_secs,
+    }
 }
 
 // ── Validation ──────────────────────────────────────────────────
@@ -354,7 +401,7 @@ pub fn handle_command(command: crate::SopCommands, config: &crate::config::Confi
             if sops.is_empty() {
                 println!("No SOPs found.");
                 println!();
-                println!("  Create one: mkdir -p ~/.zeroclaw/workspace/sops/my-sop");
+                println!("  Create one: mkdir -p ~/.codeclaw/workspace/sops/my-sop");
                 println!("              # Add SOP.toml and SOP.md");
                 println!();
                 println!(
@@ -729,6 +776,8 @@ type = "manual"
                 body: "Do the thing".into(),
                 suggested_tools: vec!["shell".into()],
                 requires_confirmation: false,
+                condition: None,
+                retry: None,
             }],
             cooldown_secs: 0,
             max_concurrent: 1,

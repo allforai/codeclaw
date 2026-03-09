@@ -167,14 +167,13 @@ mod tests {
                     title: "Step one".into(),
                     body: "Do step one".into(),
                     suggested_tools: vec!["shell".into()],
-                    requires_confirmation: false,
+                    ..Default::default()
                 },
                 SopStep {
                     number: 2,
                     title: "Step two".into(),
                     body: "Do step two".into(),
-                    suggested_tools: vec![],
-                    requires_confirmation: false,
+                    ..Default::default()
                 },
             ],
             cooldown_secs: 0,

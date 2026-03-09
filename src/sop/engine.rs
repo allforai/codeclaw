@@ -160,18 +160,8 @@ impl SopEngine {
 
         info!("SOP run {} started for '{}'", run_id, sop_name);
 
-        // Determine first action based on execution mode
-        let step = sop.steps[0].clone();
-        let context = format_step_context(&sop, &self.active_runs[&run_id], &step);
-        let action = resolve_step_action(&sop, &step, run_id.clone(), context);
-
-        // If the action is WaitApproval, update run status and record timestamp
-        if matches!(action, SopRunAction::WaitApproval { .. }) {
-            if let Some(run) = self.active_runs.get_mut(&run_id) {
-                run.status = SopRunStatus::WaitingApproval;
-                run.waiting_since = Some(now_iso8601());
-            }
-        }
+        // Determine first action, skipping steps whose condition evaluates to false
+        let action = self.resolve_next_action_skipping_conditions(&sop, &run_id)?;
 
         Ok(action)
     }
@@ -213,19 +203,8 @@ impl SopEngine {
         let run = self.active_runs.get_mut(run_id).unwrap();
         run.current_step = next_step_num;
 
-        let step_idx = (next_step_num - 1) as usize;
-        let step = sop.steps[step_idx].clone();
-        let context = format_step_context(&sop, run, &step);
         let run_id_str = run_id.to_string();
-        let action = resolve_step_action(&sop, &step, run_id_str.clone(), context);
-
-        // If the action is WaitApproval, update run status and record timestamp
-        if matches!(action, SopRunAction::WaitApproval { .. }) {
-            if let Some(run) = self.active_runs.get_mut(&run_id_str) {
-                run.status = SopRunStatus::WaitingApproval;
-                run.waiting_since = Some(now_iso8601());
-            }
-        }
+        let action = self.resolve_next_action_skipping_conditions(&sop, &run_id_str)?;
 
         Ok(action)
     }
@@ -342,6 +321,70 @@ impl SopEngine {
     #[cfg(test)]
     pub(crate) fn set_sops_for_test(&mut self, sops: Vec<Sop>) {
         self.sops = sops;
+    }
+
+    // ── Condition & retry helpers ────────────────────────────────
+
+    /// Resolve the next action for the current step, skipping steps whose
+    /// condition evaluates to false. Returns Completed if all remaining steps
+    /// are skipped.
+    fn resolve_next_action_skipping_conditions(
+        &mut self,
+        sop: &Sop,
+        run_id: &str,
+    ) -> Result<SopRunAction> {
+        loop {
+            let run = self
+                .active_runs
+                .get(run_id)
+                .ok_or_else(|| anyhow::anyhow!("Active run not found: {run_id}"))?;
+
+            let step_idx = (run.current_step - 1) as usize;
+            let step = sop.steps[step_idx].clone();
+
+            // Evaluate step condition
+            if let Some(ref condition) = step.condition {
+                if !evaluate_step_condition(condition, &run.step_results) {
+                    // Condition is false — skip this step
+                    let now = now_iso8601();
+                    let skip_result = SopStepResult {
+                        step_number: step.number,
+                        status: SopStepStatus::Skipped,
+                        output: format!("Skipped: condition '{}' evaluated to false", condition),
+                        started_at: now.clone(),
+                        completed_at: Some(now),
+                        attempts: 0,
+                        skipped_by_condition: true,
+                    };
+                    let run = self.active_runs.get_mut(run_id).unwrap();
+                    run.step_results.push(skip_result);
+
+                    let next_step_num = run.current_step + 1;
+                    if next_step_num > run.total_steps {
+                        info!("SOP run {run_id} completed successfully");
+                        return Ok(self.finish_run(run_id, SopRunStatus::Completed, None));
+                    }
+                    let run = self.active_runs.get_mut(run_id).unwrap();
+                    run.current_step = next_step_num;
+                    continue;
+                }
+            }
+
+            // Condition passed (or no condition) — resolve step action
+            let run = self.active_runs.get(run_id).unwrap();
+            let context = format_step_context(sop, run, &step);
+            let action = resolve_step_action(sop, &step, run_id.to_string(), context);
+
+            // If the action is WaitApproval, update run status and record timestamp
+            if matches!(action, SopRunAction::WaitApproval { .. }) {
+                if let Some(run) = self.active_runs.get_mut(run_id) {
+                    run.status = SopRunStatus::WaitingApproval;
+                    run.waiting_since = Some(now_iso8601());
+                }
+            }
+
+            return Ok(action);
+        }
     }
 
     // ── Internal helpers ────────────────────────────────────────
@@ -519,6 +562,66 @@ fn resolve_step_action(sop: &Sop, step: &SopStep, run_id: String, context: Strin
     }
 }
 
+// ── Step condition evaluation ────────────────────────────────────
+
+/// Evaluate a step-level condition expression against previous step results.
+///
+/// Supported expressions:
+///   - `{{prev.success}} == true` — checks if the previous step completed successfully
+///   - `{{prev.success}} == false` — checks if the previous step failed or was skipped
+///   - `{{prev.status}} == completed` — checks previous step status
+///   - `{{prev.status}} == skipped` — checks if previous step was skipped
+///
+/// Returns `true` if condition is met (step should run), `false` to skip.
+fn evaluate_step_condition(condition: &str, step_results: &[SopStepResult]) -> bool {
+    let condition = condition.trim();
+    if condition.is_empty() {
+        return true;
+    }
+
+    let prev = step_results.last();
+
+    // Handle {{prev.success}} == true/false
+    if condition.contains("{{prev.success}}") {
+        let prev_success = prev.map_or(false, |r| r.status == SopStepStatus::Completed);
+        let rhs = if let Some(pos) = condition.find("==") {
+            condition[pos + 2..].trim()
+        } else if let Some(pos) = condition.find("!=") {
+            let val = condition[pos + 2..].trim();
+            let prev_val = if prev_success { "true" } else { "false" };
+            return prev_val != val;
+        } else {
+            return prev_success;
+        };
+
+        return match rhs {
+            "true" => prev_success,
+            "false" => !prev_success,
+            _ => false,
+        };
+    }
+
+    // Handle {{prev.status}} == completed/failed/skipped
+    if condition.contains("{{prev.status}}") {
+        let prev_status = prev.map(|r| r.status);
+        let rhs = if let Some(pos) = condition.find("==") {
+            condition[pos + 2..].trim()
+        } else {
+            return false;
+        };
+
+        return match rhs {
+            "completed" => prev_status == Some(SopStepStatus::Completed),
+            "failed" => prev_status == Some(SopStepStatus::Failed),
+            "skipped" => prev_status == Some(SopStepStatus::Skipped),
+            _ => false,
+        };
+    }
+
+    // Unknown condition format — default to true (run the step)
+    true
+}
+
 // ── Step context formatting ─────────────────────────────────────
 
 /// Build the structured context message that gets injected into the agent.
@@ -679,14 +782,13 @@ mod tests {
                     title: "Step one".into(),
                     body: "Do step one".into(),
                     suggested_tools: vec!["shell".into()],
-                    requires_confirmation: false,
+                    ..Default::default()
                 },
                 SopStep {
                     number: 2,
                     title: "Step two".into(),
                     body: "Do step two".into(),
-                    suggested_tools: vec![],
-                    requires_confirmation: false,
+                    ..Default::default()
                 },
             ],
             cooldown_secs: 0,
@@ -1066,6 +1168,8 @@ mod tests {
                     output: "done".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1083,6 +1187,8 @@ mod tests {
                     output: "done".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1111,6 +1217,8 @@ mod tests {
                     output: "valve stuck".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1193,6 +1301,8 @@ mod tests {
                     output: "ok".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1205,6 +1315,8 @@ mod tests {
                     output: "ok".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1264,6 +1376,8 @@ mod tests {
                     output: "ok".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1395,6 +1509,8 @@ mod tests {
                     output: "ok".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1407,6 +1523,8 @@ mod tests {
                     output: "ok".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                attempts: 1,
+                skipped_by_condition: false,
                 },
             )
             .unwrap();
@@ -1564,6 +1682,8 @@ mod tests {
                         output: "ok".into(),
                         started_at: now_iso8601(),
                         completed_at: Some(now_iso8601()),
+                    attempts: 1,
+                    skipped_by_condition: false,
                     },
                 )
                 .unwrap();
@@ -1605,6 +1725,8 @@ mod tests {
                         output: "ok".into(),
                         started_at: now_iso8601(),
                         completed_at: Some(now_iso8601()),
+                    attempts: 1,
+                    skipped_by_condition: false,
                     },
                 )
                 .unwrap();

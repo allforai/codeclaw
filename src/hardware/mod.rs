@@ -217,7 +217,7 @@ fn run_info(chip: &str) -> Result<()> {
         println!();
         println!("Build with: cargo build --features hardware,probe");
         println!();
-        println!("Then run: zeroclaw hardware info --chip {}", chip);
+        println!("Then run: codeclaw hardware info --chip {}", chip);
         println!();
         println!("This uses probe-rs to attach to the Nucleo's ST-Link over USB");
         println!("and read chip info (memory map, etc.) — no firmware on target needed.");

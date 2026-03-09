@@ -3,7 +3,7 @@ members = [".", "crates/robot-kit"]
 resolver = "2"
 
 [package]
-name = "zeroclaw"
+name = "codeclaw"
 version = "0.1.7"
 edition = "2021"
 authors = ["theonlyhennygod"]
@@ -14,6 +14,14 @@ readme = "README.md"
 keywords = ["ai", "agent", "cli", "assistant", "chatbot"]
 categories = ["command-line-utilities", "api-bindings"]
 rust-version = "1.87"
+
+[lib]
+name = "zeroclaw"
+path = "src/lib.rs"
+
+[[bin]]
+name = "codeclaw"
+path = "src/main.rs"
 
 [dependencies]
 # CLI - minimal and fast

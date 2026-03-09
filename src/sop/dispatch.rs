@@ -347,8 +347,7 @@ mod tests {
                 number: 1,
                 title: "Step one".into(),
                 body: "Do step one".into(),
-                suggested_tools: vec![],
-                requires_confirmation: false,
+                ..Default::default()
             }],
             cooldown_secs: 0,
             max_concurrent: 2,
@@ -432,6 +431,8 @@ mod tests {
                     output: "done".into(),
                     started_at: now_iso8601(),
                     completed_at: Some(now_iso8601()),
+                    attempts: 1,
+                    skipped_by_condition: false,
                 },
             )
             .unwrap();

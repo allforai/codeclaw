@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const OTP_SECRET_FILE: &str = "otp-secret";
 const OTP_DIGITS: u32 = 6;
-const OTP_ISSUER: &str = "ZeroClaw";
+const OTP_ISSUER: &str = "CodeClaw";
 
 #[derive(Debug)]
 pub struct OtpValidator {
@@ -106,7 +106,7 @@ impl OtpValidator {
 
     pub fn otpauth_uri(&self) -> String {
         let secret = encode_base32_secret(&self.secret);
-        let account = "zeroclaw";
+        let account = "codeclaw";
         format!(
             "otpauth://totp/{issuer}:{account}?secret={secret}&issuer={issuer}&period={period}",
             issuer = OTP_ISSUER,

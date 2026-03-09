@@ -117,6 +117,8 @@ impl Tool for SopAdvanceTool {
                 output: output.to_string(),
                 started_at: now.clone(),
                 completed_at: Some(now),
+                attempts: 1,
+                skipped_by_condition: false,
             };
             let step_result_clone = step_result.clone();
 
@@ -220,15 +222,13 @@ mod tests {
                     number: 1,
                     title: "Step one".into(),
                     body: "Do step one".into(),
-                    suggested_tools: vec![],
-                    requires_confirmation: false,
+                    ..Default::default()
                 },
                 SopStep {
                     number: 2,
                     title: "Step two".into(),
                     body: "Do step two".into(),
-                    suggested_tools: vec![],
-                    requires_confirmation: false,
+                    ..Default::default()
                 },
             ],
             cooldown_secs: 0,

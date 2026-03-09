@@ -307,8 +307,7 @@ mod tests {
                 number: 1,
                 title: "Step one".into(),
                 body: "Do it".into(),
-                suggested_tools: vec![],
-                requires_confirmation: false,
+                ..Default::default()
             }],
             cooldown_secs: 0,
             max_concurrent: 2,
@@ -429,6 +428,8 @@ mod tests {
                 output: "done".into(),
                 started_at: "2026-02-19T12:00:00Z".into(),
                 completed_at: Some("2026-02-19T12:01:00Z".into()),
+                attempts: 1,
+                skipped_by_condition: false,
             }],
             waiting_since: None,
         };
@@ -464,6 +465,8 @@ mod tests {
                 output: "fail".into(),
                 started_at: "2026-02-19T12:00:00Z".into(),
                 completed_at: Some("2026-02-19T12:01:00Z".into()),
+                attempts: 1,
+                skipped_by_condition: false,
             }],
             waiting_since: None,
         };

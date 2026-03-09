@@ -1653,7 +1653,7 @@ pub fn build_runtime_proxy_client_with_timeouts(
 fn parse_proxy_scope(raw: &str) -> Option<ProxyScope> {
     match raw.trim().to_ascii_lowercase().as_str() {
         "environment" | "env" => Some(ProxyScope::Environment),
-        "zeroclaw" | "internal" | "core" => Some(ProxyScope::Zeroclaw),
+        "codeclaw" | "zeroclaw" | "internal" | "core" => Some(ProxyScope::Zeroclaw),
         "services" | "service" => Some(ProxyScope::Services),
         _ => None,
     }
@@ -1747,7 +1747,7 @@ pub struct QdrantConfig {
     #[serde(default)]
     pub url: Option<String>,
     /// Qdrant collection name for storing memories.
-    /// Falls back to `QDRANT_COLLECTION` env var, or default "zeroclaw_memories".
+    /// Falls back to `QDRANT_COLLECTION` env var, or default "codeclaw_memories".
     #[serde(default = "default_qdrant_collection")]
     pub collection: String,
     /// Optional API key for Qdrant Cloud or secured instances.
@@ -1757,7 +1757,7 @@ pub struct QdrantConfig {
 }
 
 fn default_qdrant_collection() -> String {
-    "zeroclaw_memories".into()
+    "codeclaw_memories".into()
 }
 
 impl Default for QdrantConfig {
@@ -1938,7 +1938,7 @@ pub struct ObservabilityConfig {
     #[serde(default)]
     pub otel_endpoint: Option<String>,
 
-    /// Service name reported to the OTel collector. Defaults to "zeroclaw".
+    /// Service name reported to the OTel collector. Defaults to "codeclaw".
     #[serde(default)]
     pub otel_service_name: Option<String>,
 
@@ -4721,7 +4721,7 @@ impl Config {
             } else {
                 tracing::warn!(
                     scope = %scope_raw,
-                    "Ignoring invalid ZEROCLAW_PROXY_SCOPE (valid: environment|zeroclaw|services)"
+                    "Ignoring invalid ZEROCLAW_PROXY_SCOPE (valid: environment|codeclaw|services)"
                 );
             }
         }
