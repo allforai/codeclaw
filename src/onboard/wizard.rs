@@ -78,7 +78,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
 
     println!(
         "  {}",
-        style("Welcome to ZeroClaw — the fastest, smallest AI assistant.")
+        style("Welcome to CodeClaw — the fastest, smallest AI assistant.")
             .white()
             .bold()
     );
@@ -100,7 +100,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     print_step(2, 9, "AI Provider & API Key");
     let (provider, api_key, model, provider_api_url) = setup_provider(&workspace_dir).await?;
 
-    print_step(3, 9, "Channels (How You Talk to ZeroClaw)");
+    print_step(3, 9, "Channels (How You Talk to CodeClaw)");
     let channels_config = setup_channels()?;
 
     print_step(4, 9, "Tunnel (Expose to Internet)");
@@ -169,6 +169,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         hardware: hardware_config,
         query_classification: crate::config::QueryClassificationConfig::default(),
         transcription: crate::config::TranscriptionConfig::default(),
+        projects: Vec::new(),
     };
 
     println!(
@@ -230,7 +231,7 @@ pub async fn run_channels_repair_wizard() -> Result<Config> {
 
     let mut config = Config::load_or_init().await?;
 
-    print_step(1, 1, "Channels (How You Talk to ZeroClaw)");
+    print_step(1, 1, "Channels (How You Talk to CodeClaw)");
     config.channels_config = setup_channels()?;
     config.save().await?;
     persist_workspace_selection(&config.config_path).await?;
@@ -351,8 +352,8 @@ fn apply_provider_update(
 // ── Quick setup (zero prompts) ───────────────────────────────────
 
 /// Non-interactive setup: generates a sensible default config instantly.
-/// Use `zeroclaw onboard` or `zeroclaw onboard --api-key sk-... --provider openrouter --memory sqlite|lucid`.
-/// Use `zeroclaw onboard --interactive` for the full wizard.
+/// Use `codeclaw onboard` or `codeclaw onboard --api-key sk-... --provider openrouter --memory sqlite|lucid`.
+/// Use `codeclaw onboard --interactive` for the full wizard.
 fn backend_key_from_choice(choice: usize) -> &'static str {
     selectable_memory_backends()
         .get(choice)
@@ -433,7 +434,7 @@ fn resolve_quick_setup_dirs_with_home(home: &Path) -> (PathBuf, PathBuf) {
         }
     }
 
-    let config_dir = home.join(".zeroclaw");
+    let config_dir = home.join(".codeclaw");
     (config_dir.clone(), config_dir.join("workspace"))
 }
 
@@ -520,6 +521,7 @@ async fn run_quick_setup_with_home(
         hardware: crate::config::HardwareConfig::default(),
         query_classification: crate::config::QueryClassificationConfig::default(),
         transcription: crate::config::TranscriptionConfig::default(),
+        projects: Vec::new(),
     };
 
     config.save().await?;
@@ -529,7 +531,7 @@ async fn run_quick_setup_with_home(
     let default_ctx = ProjectContext {
         user_name: std::env::var("USER").unwrap_or_else(|_| "User".into()),
         timezone: "UTC".into(),
-        agent_name: "ZeroClaw".into(),
+        agent_name: "CodeClaw".into(),
         communication_style:
             "Be warm, natural, and clear. Use occasional relevant emojis (1-2 max) and avoid robotic phrasing."
                 .into(),
@@ -605,30 +607,30 @@ async fn run_quick_setup_with_home(
     println!("  {}", style("Next steps:").white().bold());
     if credential_override.is_none() {
         if provider_supports_keyless_local_usage(&provider_name) {
-            println!("    1. Chat:     zeroclaw agent -m \"Hello!\"");
-            println!("    2. Gateway:  zeroclaw gateway");
-            println!("    3. Status:   zeroclaw status");
+            println!("    1. Chat:     codeclaw agent -m \"Hello!\"");
+            println!("    2. Gateway:  codeclaw gateway");
+            println!("    3. Status:   codeclaw status");
         } else if provider_supports_device_flow(&provider_name) {
             if canonical_provider_name(&provider_name) == "copilot" {
-                println!("    1. Chat:              zeroclaw agent -m \"Hello!\"");
+                println!("    1. Chat:              codeclaw agent -m \"Hello!\"");
                 println!("       (device / OAuth auth will prompt on first run)");
-                println!("    2. Gateway:           zeroclaw gateway");
-                println!("    3. Status:            zeroclaw status");
+                println!("    2. Gateway:           codeclaw gateway");
+                println!("    3. Status:            codeclaw status");
             } else {
                 println!(
-                    "    1. Login:             zeroclaw auth login --provider {}",
+                    "    1. Login:             codeclaw auth login --provider {}",
                     provider_name
                 );
-                println!("    2. Chat:              zeroclaw agent -m \"Hello!\"");
-                println!("    3. Gateway:           zeroclaw gateway");
-                println!("    4. Status:            zeroclaw status");
+                println!("    2. Chat:              codeclaw agent -m \"Hello!\"");
+                println!("    3. Gateway:           codeclaw gateway");
+                println!("    4. Status:            codeclaw status");
             }
         } else {
             let env_var = provider_env_var(&provider_name);
             println!("    1. Set your API key:  export {env_var}=\"sk-...\"");
-            println!("    2. Or edit:           ~/.zeroclaw/config.toml");
-            println!("    3. Chat:              zeroclaw agent -m \"Hello!\"");
-            println!("    4. Gateway:           zeroclaw gateway");
+            println!("    2. Or edit:           ~/.codeclaw/config.toml");
+            println!("    3. Chat:              codeclaw agent -m \"Hello!\"");
+            println!("    4. Gateway:           codeclaw gateway");
         }
     } else {
         println!("    1. Chat:     zeroclaw agent -m \"Hello!\"");

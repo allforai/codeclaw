@@ -59,9 +59,9 @@ static RUNTIME_PROXY_CLIENT_CACHE: OnceLock<RwLock<HashMap<String, reqwest::Clie
 
 // ── Top-level config ──────────────────────────────────────────────
 
-/// Top-level ZeroClaw configuration, loaded from `config.toml`.
+/// Top-level CodeClaw configuration, loaded from `config.toml`.
 ///
-/// Resolution order: `ZEROCLAW_WORKSPACE` env → `active_workspace.toml` marker → `~/.zeroclaw/config.toml`.
+/// Resolution order: `ZEROCLAW_WORKSPACE` env → `active_workspace.toml` marker → `~/.codeclaw/config.toml`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Config {
     /// Workspace directory - computed from home, not serialized
@@ -217,6 +217,10 @@ pub struct Config {
     /// Voice transcription configuration (Whisper API via Groq).
     #[serde(default)]
     pub transcription: TranscriptionConfig,
+
+    /// Multi-project registry (`[[projects]]`).
+    #[serde(default)]
+    pub projects: Vec<ProjectConfig>,
 }
 
 /// Named provider profile definition compatible with Codex app-server style config.
@@ -274,6 +278,65 @@ fn default_max_depth() -> u32 {
 
 fn default_max_tool_iterations() -> usize {
     10
+}
+
+// ── Project Registry ─────────────────────────────────────────────
+
+/// Configuration for a registered project in the multi-project registry.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ProjectConfig {
+    /// Unique identifier for the project.
+    pub id: String,
+    /// Human-readable project name.
+    pub name: String,
+    /// Optional remote repository URL.
+    #[serde(default)]
+    pub repo_url: Option<String>,
+    /// Local filesystem path to the project root.
+    pub local_path: String,
+    /// Technology stack tags (e.g. `["typescript", "react"]`).
+    #[serde(default)]
+    pub tech_stack: Vec<String>,
+    /// Default git branch name.
+    #[serde(default = "default_branch")]
+    pub default_branch: String,
+    /// Build command (e.g. `"npm run build"`).
+    #[serde(default)]
+    pub build_cmd: Option<String>,
+    /// Test command (e.g. `"npm test"`).
+    #[serde(default)]
+    pub test_cmd: Option<String>,
+    /// Dev server command (e.g. `"npm run dev"`).
+    #[serde(default)]
+    pub dev_cmd: Option<String>,
+    /// Base URL for browser automation against this project.
+    #[serde(default)]
+    pub browser_base_url: Option<String>,
+    /// Preferred delegate agent IDs for this project.
+    #[serde(default)]
+    pub preferred_agents: Vec<String>,
+}
+
+fn default_branch() -> String {
+    "main".to_string()
+}
+
+impl Default for ProjectConfig {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            name: String::new(),
+            repo_url: None,
+            local_path: String::new(),
+            tech_stack: Vec::new(),
+            default_branch: "main".to_string(),
+            build_cmd: None,
+            test_cmd: None,
+            dev_cmd: None,
+            browser_base_url: None,
+            preferred_agents: Vec::new(),
+        }
+    }
 }
 
 // ── Hardware Config (wizard-driven) ─────────────────────────────
@@ -1147,7 +1210,7 @@ impl Default for WebSearchConfig {
 pub enum ProxyScope {
     /// Use system environment proxy variables only.
     Environment,
-    /// Apply proxy to all ZeroClaw-managed HTTP traffic (default).
+    /// Apply proxy to all CodeClaw-managed HTTP traffic (default).
     #[default]
     Zeroclaw,
     /// Apply proxy only to explicitly listed service selectors.
@@ -3148,7 +3211,7 @@ fn default_irc_port() -> u16 {
     6697
 }
 
-/// How ZeroClaw receives events from Feishu / Lark.
+/// How CodeClaw receives events from Feishu / Lark.
 ///
 /// - `websocket` (default) — persistent WSS long-connection; no public URL required.
 /// - `webhook`             — HTTP callback server; requires a public HTTPS endpoint.
@@ -3358,7 +3421,7 @@ pub struct EstopConfig {
 }
 
 fn default_estop_state_file() -> String {
-    "~/.zeroclaw/estop-state.json".to_string()
+    "~/.codeclaw/estop-state.json".to_string()
 }
 
 impl Default for EstopConfig {
@@ -3585,7 +3648,7 @@ impl Default for Config {
     fn default() -> Self {
         let home =
             UserDirs::new().map_or_else(|| PathBuf::from("."), |u| u.home_dir().to_path_buf());
-        let zeroclaw_dir = home.join(".zeroclaw");
+        let zeroclaw_dir = home.join(".codeclaw");
 
         Self {
             workspace_dir: zeroclaw_dir.join("workspace"),
@@ -3629,6 +3692,7 @@ impl Default for Config {
             hardware: HardwareConfig::default(),
             query_classification: QueryClassificationConfig::default(),
             transcription: TranscriptionConfig::default(),
+            projects: Vec::new(),
         }
     }
 }
@@ -3649,7 +3713,7 @@ fn default_config_dir() -> Result<PathBuf> {
     let home = UserDirs::new()
         .map(|u| u.home_dir().to_path_buf())
         .context("Could not find home directory")?;
-    Ok(home.join(".zeroclaw"))
+    Ok(home.join(".codeclaw"))
 }
 
 fn active_workspace_state_path(default_dir: &Path) -> PathBuf {
@@ -3790,7 +3854,7 @@ pub(crate) fn resolve_config_dir_for_workspace(workspace_dir: &Path) -> (PathBuf
 
     let legacy_config_dir = workspace_dir
         .parent()
-        .map(|parent| parent.join(".zeroclaw"));
+        .map(|parent| parent.join(".codeclaw"));
     if let Some(legacy_dir) = legacy_config_dir {
         if legacy_dir.join("config.toml").exists() {
             return (legacy_dir, workspace_config_dir);
@@ -3948,7 +4012,7 @@ fn encrypt_secret(
 fn config_dir_creation_error(path: &Path) -> String {
     format!(
         "Failed to create config directory: {}. If running as an OpenRC service, \
-         ensure this path is writable by user 'zeroclaw'.",
+         ensure this path is writable by user 'codeclaw'.",
         path.display()
     )
 }
@@ -5161,6 +5225,7 @@ default_temperature = 0.7
             hooks: HooksConfig::default(),
             hardware: HardwareConfig::default(),
             transcription: TranscriptionConfig::default(),
+            projects: Vec::new(),
         };
 
         let toml_str = toml::to_string_pretty(&config).unwrap();
@@ -5343,6 +5408,7 @@ tool_dispatcher = "xml"
             hooks: HooksConfig::default(),
             hardware: HardwareConfig::default(),
             transcription: TranscriptionConfig::default(),
+            projects: Vec::new(),
         };
 
         config.save().await.unwrap();
@@ -7601,7 +7667,7 @@ gated_domain_categories = ["banking"]
 
 [security.estop]
 enabled = true
-state_file = "~/.zeroclaw/estop-state.json"
+state_file = "~/.codeclaw/estop-state.json"
 require_otp_to_resume = true
 "#,
         )
