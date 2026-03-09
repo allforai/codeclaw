@@ -862,4 +862,49 @@ type = "manual"
         ));
         assert!(matches!(manifest.triggers[4], SopTrigger::Manual));
     }
+
+    #[test]
+    fn parse_steps_with_condition_and_retry() {
+        let md = r#"## Steps
+
+1. **Check readings** — Read sensor data.
+   - tools: gpio_read
+   - condition: {{prev.success}} == true
+   - retry: 3, backoff 5s
+
+2. **Close valve** — Set GPIO pin LOW.
+   - tools: gpio_write
+   - requires_confirmation: true
+   - condition: {{prev.status}} == completed
+"#;
+
+        let steps = parse_steps(md);
+        assert_eq!(steps.len(), 2);
+
+        // Step 1: has condition and retry
+        assert_eq!(steps[0].condition.as_deref(), Some("{{prev.success}} == true"));
+        let retry = steps[0].retry.as_ref().unwrap();
+        assert_eq!(retry.max_attempts, 3);
+        assert_eq!(retry.backoff_secs, 5);
+
+        // Step 2: has condition, no retry
+        assert_eq!(steps[1].condition.as_deref(), Some("{{prev.status}} == completed"));
+        assert!(steps[1].retry.is_none());
+        assert!(steps[1].requires_confirmation);
+    }
+
+    #[test]
+    fn parse_steps_without_new_fields() {
+        // Backward compatibility: steps without condition/retry
+        let md = r#"## Steps
+
+1. **Do thing** — Do it.
+   - tools: shell
+"#;
+
+        let steps = parse_steps(md);
+        assert_eq!(steps.len(), 1);
+        assert!(steps[0].condition.is_none());
+        assert!(steps[0].retry.is_none());
+    }
 }

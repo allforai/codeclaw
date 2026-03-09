@@ -1750,4 +1750,302 @@ mod tests {
         assert_eq!(run.status, SopRunStatus::Running);
         assert!(run.waiting_since.is_none());
     }
+
+    // ── Step condition tests ─────────────────────────────
+
+    fn test_sop_with_condition(
+        name: &str,
+        condition: Option<String>,
+    ) -> Sop {
+        Sop {
+            name: name.into(),
+            description: format!("Test SOP: {name}"),
+            version: "1.0.0".into(),
+            priority: SopPriority::Normal,
+            execution_mode: SopExecutionMode::Auto,
+            triggers: vec![SopTrigger::Manual],
+            steps: vec![
+                SopStep {
+                    number: 1,
+                    title: "Step one".into(),
+                    body: "Do step one".into(),
+                    ..Default::default()
+                },
+                SopStep {
+                    number: 2,
+                    title: "Step two".into(),
+                    body: "Do step two".into(),
+                    condition,
+                    ..Default::default()
+                },
+            ],
+            cooldown_secs: 0,
+            max_concurrent: 1,
+            location: None,
+        }
+    }
+
+    #[test]
+    fn sop_extension_step_condition_true_runs_step() {
+        // When condition evaluates to true, step should execute normally
+        let sop = test_sop_with_condition(
+            "cond-true",
+            Some("{{prev.success}} == true".into()),
+        );
+        let mut engine = engine_with_sops(vec![sop]);
+        let action = engine.start_run("cond-true", manual_event()).unwrap();
+        let run_id = extract_run_id(&action).to_string();
+
+        // Complete step 1 successfully
+        let action = engine
+            .advance_step(
+                &run_id,
+                SopStepResult {
+                    step_number: 1,
+                    status: SopStepStatus::Completed,
+                    output: "done".into(),
+                    started_at: now_iso8601(),
+                    completed_at: Some(now_iso8601()),
+                    attempts: 1,
+                    skipped_by_condition: false,
+                },
+            )
+            .unwrap();
+
+        // Step 2 condition is {{prev.success}} == true, prev succeeded -> should execute
+        assert!(
+            matches!(action, SopRunAction::ExecuteStep { ref step, .. } if step.number == 2),
+            "Step 2 should execute when condition is true, got: {:?}",
+            action
+        );
+    }
+
+    #[test]
+    fn sop_extension_step_condition_false_skips_step() {
+        // When condition evaluates to false, step should be skipped
+        let sop = test_sop_with_condition(
+            "cond-false",
+            Some("{{prev.success}} == false".into()),
+        );
+        let mut engine = engine_with_sops(vec![sop]);
+        let action = engine.start_run("cond-false", manual_event()).unwrap();
+        let run_id = extract_run_id(&action).to_string();
+
+        // Complete step 1 successfully
+        let action = engine
+            .advance_step(
+                &run_id,
+                SopStepResult {
+                    step_number: 1,
+                    status: SopStepStatus::Completed,
+                    output: "done".into(),
+                    started_at: now_iso8601(),
+                    completed_at: Some(now_iso8601()),
+                    attempts: 1,
+                    skipped_by_condition: false,
+                },
+            )
+            .unwrap();
+
+        // Step 2 condition is {{prev.success}} == false, prev succeeded
+        // -> condition is false -> step 2 skipped -> run completes
+        assert!(
+            matches!(action, SopRunAction::Completed { .. }),
+            "Step 2 should be skipped (condition false), run should complete. Got: {:?}",
+            action
+        );
+
+        // Verify the skipped step result was recorded
+        let run = engine.finished_runs(None);
+        assert_eq!(run.len(), 1);
+        let step_results = &run[0].step_results;
+        assert_eq!(step_results.len(), 2);
+        assert_eq!(step_results[1].status, SopStepStatus::Skipped);
+        assert!(step_results[1].skipped_by_condition);
+    }
+
+    #[test]
+    fn sop_extension_step_with_retry_succeeds_first_try() {
+        // Step with retry policy that succeeds on first attempt
+        let sop = Sop {
+            name: "retry-ok".into(),
+            description: "Retry test".into(),
+            version: "1.0.0".into(),
+            priority: SopPriority::Normal,
+            execution_mode: SopExecutionMode::Auto,
+            triggers: vec![SopTrigger::Manual],
+            steps: vec![
+                SopStep {
+                    number: 1,
+                    title: "Retriable step".into(),
+                    body: "Do something".into(),
+                    retry: Some(super::super::types::RetryPolicy {
+                        max_attempts: 3,
+                        backoff_secs: 1,
+                    }),
+                    ..Default::default()
+                },
+                SopStep {
+                    number: 2,
+                    title: "Final step".into(),
+                    body: "Done".into(),
+                    ..Default::default()
+                },
+            ],
+            cooldown_secs: 0,
+            max_concurrent: 1,
+            location: None,
+        };
+
+        let mut engine = engine_with_sops(vec![sop]);
+        let action = engine.start_run("retry-ok", manual_event()).unwrap();
+        let run_id = extract_run_id(&action).to_string();
+
+        // Step 1 succeeds on first try
+        let action = engine
+            .advance_step(
+                &run_id,
+                SopStepResult {
+                    step_number: 1,
+                    status: SopStepStatus::Completed,
+                    output: "ok on first try".into(),
+                    started_at: now_iso8601(),
+                    completed_at: Some(now_iso8601()),
+                    attempts: 1,
+                    skipped_by_condition: false,
+                },
+            )
+            .unwrap();
+
+        // Should advance to step 2 normally
+        assert!(
+            matches!(action, SopRunAction::ExecuteStep { ref step, .. } if step.number == 2),
+            "Should advance to step 2 after successful retry step"
+        );
+    }
+
+    #[test]
+    fn sop_extension_step_with_retry_reports_multiple_attempts() {
+        // Step with retry policy: caller reports it took multiple attempts
+        let sop = Sop {
+            name: "retry-multi".into(),
+            description: "Retry multi test".into(),
+            version: "1.0.0".into(),
+            priority: SopPriority::Normal,
+            execution_mode: SopExecutionMode::Auto,
+            triggers: vec![SopTrigger::Manual],
+            steps: vec![
+                SopStep {
+                    number: 1,
+                    title: "Retriable step".into(),
+                    body: "Do something".into(),
+                    retry: Some(super::super::types::RetryPolicy {
+                        max_attempts: 3,
+                        backoff_secs: 0,
+                    }),
+                    ..Default::default()
+                },
+                SopStep {
+                    number: 2,
+                    title: "Final step".into(),
+                    body: "Done".into(),
+                    ..Default::default()
+                },
+            ],
+            cooldown_secs: 0,
+            max_concurrent: 1,
+            location: None,
+        };
+
+        let mut engine = engine_with_sops(vec![sop]);
+        let action = engine.start_run("retry-multi", manual_event()).unwrap();
+        let run_id = extract_run_id(&action).to_string();
+
+        // Step 1 succeeds after 2 attempts (reported by caller)
+        let action = engine
+            .advance_step(
+                &run_id,
+                SopStepResult {
+                    step_number: 1,
+                    status: SopStepStatus::Completed,
+                    output: "ok after retry".into(),
+                    started_at: now_iso8601(),
+                    completed_at: Some(now_iso8601()),
+                    attempts: 2,
+                    skipped_by_condition: false,
+                },
+            )
+            .unwrap();
+
+        // Should advance to step 2
+        assert!(matches!(action, SopRunAction::ExecuteStep { .. }));
+
+        // Verify the step result records the attempt count
+        let run = engine.get_run(&run_id).unwrap();
+        assert_eq!(run.step_results[0].attempts, 2);
+    }
+
+    // ── Condition evaluation unit tests ──────────────────
+
+    #[test]
+    fn sop_extension_evaluate_condition_prev_success_true() {
+        let results = vec![SopStepResult {
+            step_number: 1,
+            status: SopStepStatus::Completed,
+            output: "ok".into(),
+            started_at: now_iso8601(),
+            completed_at: Some(now_iso8601()),
+            attempts: 1,
+            skipped_by_condition: false,
+        }];
+
+        assert!(evaluate_step_condition("{{prev.success}} == true", &results));
+        assert!(!evaluate_step_condition("{{prev.success}} == false", &results));
+    }
+
+    #[test]
+    fn sop_extension_evaluate_condition_prev_success_false() {
+        let results = vec![SopStepResult {
+            step_number: 1,
+            status: SopStepStatus::Failed,
+            output: "err".into(),
+            started_at: now_iso8601(),
+            completed_at: Some(now_iso8601()),
+            attempts: 1,
+            skipped_by_condition: false,
+        }];
+
+        assert!(!evaluate_step_condition("{{prev.success}} == true", &results));
+        assert!(evaluate_step_condition("{{prev.success}} == false", &results));
+    }
+
+    #[test]
+    fn sop_extension_evaluate_condition_prev_status() {
+        let results = vec![SopStepResult {
+            step_number: 1,
+            status: SopStepStatus::Skipped,
+            output: "skipped".into(),
+            started_at: now_iso8601(),
+            completed_at: Some(now_iso8601()),
+            attempts: 0,
+            skipped_by_condition: true,
+        }];
+
+        assert!(evaluate_step_condition("{{prev.status}} == skipped", &results));
+        assert!(!evaluate_step_condition("{{prev.status}} == completed", &results));
+    }
+
+    #[test]
+    fn sop_extension_evaluate_condition_empty() {
+        // Empty condition should always return true
+        assert!(evaluate_step_condition("", &[]));
+        assert!(evaluate_step_condition("  ", &[]));
+    }
+
+    #[test]
+    fn sop_extension_evaluate_condition_no_prev_results() {
+        // No previous results — {{prev.success}} defaults to false
+        assert!(!evaluate_step_condition("{{prev.success}} == true", &[]));
+        assert!(evaluate_step_condition("{{prev.success}} == false", &[]));
+    }
 }
