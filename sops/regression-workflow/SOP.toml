@@ -1,0 +1,12 @@
+[sop]
+name = "regression-workflow"
+description = "Automated regression testing workflow: pull latest changes, build the project, run the full test suite, start the server, perform a browser patrol of key pages, and generate a report."
+version = "1.0.0"
+priority = "high"
+execution_mode = "auto"
+cooldown_secs = 60
+max_concurrent = 1
+
+[[triggers]]
+type = "cron"
+schedule = "0 2 * * *"

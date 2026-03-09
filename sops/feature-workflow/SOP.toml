@@ -1,0 +1,11 @@
+[sop]
+name = "feature-workflow"
+description = "End-to-end feature implementation workflow: parse requirements, implement the feature, add tests, run tests, perform a browser walkthrough, and produce a changeset summary."
+version = "1.0.0"
+priority = "normal"
+execution_mode = "supervised"
+cooldown_secs = 60
+max_concurrent = 1
+
+[[triggers]]
+type = "manual"

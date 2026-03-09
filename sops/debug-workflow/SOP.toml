@@ -1,0 +1,11 @@
+[sop]
+name = "debug-workflow"
+description = "Systematic debugging workflow: collect error context, analyze relevant code, delegate a fix to an agent, run tests to verify, browser-verify if applicable, and summarize findings."
+version = "1.0.0"
+priority = "high"
+execution_mode = "supervised"
+cooldown_secs = 60
+max_concurrent = 1
+
+[[triggers]]
+type = "manual"
